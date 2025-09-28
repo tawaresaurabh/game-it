@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .container {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            width: 100%;
+            max-width: 960px;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .player-card {
+            background-color: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease-in-out;
+            position: relative;
+        }
+
+        .player-card.active {
+            border-color: #3b82f6;
+            transform: translateY(-5px);
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
+        }
+
+        /* Pot and Number Card Styling */
+        .pot, .bag, .current-number-card {
+            background: linear-gradient(145deg, #a0a0a0, #606060);
+            border-radius: 1rem;
+            border: 1px solid #555;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5), 0 5px 15px rgba(0, 0, 0, 0.3);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        .pot { min-height: 150px; margin: 0 1rem; }
+        .pot-coins, .bag-count, .number-display {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            z-index: 2;
+        }
+        .button {
+            padding: 0.75rem 1.5rem;
+            font-weight: 700;
+            border-radius: 9999px;
+            color: white;
+            transition: transform 0.1s ease-in-out;
+        }
+        .button:hover { transform: translateY(-2px); }
+        .button:disabled { background-color: #9ca3af; cursor: not-allowed; transform: none; }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal.active { display: flex; }
+
+        /* Coin Animation */
+        .coin-animation {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            background-color: gold;
+            border-radius: 50%;
+            z-index: 100;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            animation: coin-flight 0.7s ease-in-out forwards;
+        }
+        @keyframes coin-flight {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            50% { transform: translate(var(--dx), var(--dy)) scale(1.2); opacity: 1; }
+            100% { transform: translate(var(--dx-final), var(--dy-final)) scale(0.5); opacity: 0; }
+        }
+
+        /* --- Scroll Theme CSS --- */
+        .scroll-content {
+            background-color: #f7f3e8; /* Parchment base color */
+            border: 1px solid #c9b183;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(139, 69, 19, 0.2);
+            padding: 3rem;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: #4b3832; /* Dark sepia text */
+            font-family: 'IM Fell English SC', serif; /* Classic, serif font */
+            font-size: 1.15rem;
+            line-height: 1.6;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 5px;
+            position: relative;
+        }
+
+        .scroll-content h2 {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #8b4513;
+            padding-bottom: 0.5rem;
+        }
+
+        .scroll-content strong {
+            color: #8b4513; /* Brown for emphasis */
+            font-weight: 700;
+        }
+
+        .scroll-content ul {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .scroll-content li {
+            margin-bottom: 0.5rem;
+        }
+        /* --- End Scroll Theme CSS --- */
+
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<div class="container mx-auto p-8">
+    <div id="setup-screen" class="text-center">
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-6">Number Game Setup</h1>
+
+        <button id="rules-button" class="text-blue-500 hover:text-blue-700 text-sm font-semibold mb-4 underline">View Rules (The Ancient Scroll)</button>
+
+        <div class="flex flex-col items-center gap-4 mb-6">
+            <label for="num-players-input" class="text-lg font-semibold text-gray-700">Number of Players (3-10):</label>
+            <input type="number" id="num-players-input" value="6" min="3" max="10" class="w-32 text-center p-2 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500">
+        </div>
+
+        <div id="player-names-input-area" class="w-full max-w-sm mx-auto mb-6">
+        </div>
+
+        <button id="start-game-button" class="button bg-blue-500 hover:bg-blue-600">Start Game</button>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        <h1 class="text-3xl sm:text-4xl font-bold text-center text-gray-800 mb-6">Number Game</h1>
+        <div class="flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6 mb-8">
+            <div class="pot w-full md:w-1/3" id="pot">
+                <div class="handle left"></div>
+                <div class="handle right"></div>
+                <h2 class="text-lg sm:text-xl font-bold mb-2 z-10">Central Pot</h2>
+                <div id="pot-coins" class="pot-coins">0</div>
+                <div class="text-xs sm:text-sm text-gray-200 z-10">Coins</div>
+            </div>
+            <div class="bag w-full md:w-1/3 mt-4 md:mt-0" id="bag">
+                <h2 class="text-lg sm:text-xl font-bold bag-title mb-2">Number Bag</h2>
+                <div id="bag-count" class="text-2xl sm:text-3xl font-bold mt-2 bag-count"></div>
+                <div class="text-xs sm:text-sm text-gray-200">Numbers Left</div>
+            </div>
+            <div class="current-number-card w-full md:w-1/3 mt-4 md:mt-0" id="current-number-card">
+                <h2 class="text-lg sm:text-xl font-bold mb-2">Current Number</h2>
+                <div id="current-number" class="number-display mt-2">-</div>
+            </div>
+        </div>
+
+        <div id="action-buttons" class="flex flex-col sm:flex-row justify-center gap-4 mb-8">
+            <button id="take-button" class="button bg-green-500 hover:bg-green-600" disabled>Take Number</button>
+            <button id="leave-button" class="button bg-red-500 hover:bg-red-600" disabled>Leave Number</button>
+        </div>
+
+        <div id="player-turn-info" class="text-center font-bold text-lg sm:text-xl mb-6 text-gray-700"></div>
+
+        <div id="game-board" class="game-board">
+        </div>
+    </div>
+</div>
+
+<div id="rules-modal" class="modal">
+    <div class="scroll-content">
+        <button onclick="document.getElementById('rules-modal').classList.remove('active')" class="absolute top-2 right-4 text-2xl text-gray-800 hover:text-red-600">&times;</button>
+
+        <h2>The Sacred Edict of Numbering</h2>
+
+        <p><strong>The Goal:</strong> To possess the lowest final score. The lowest number always wins the game.</p>
+
+        <h3>I. Setup and Beginning</h3>
+        <ul>
+            <li>Players (3-10) begin with a variable number of **Coins** (typically 11-15, determined by the game setup).</li>
+            <li>The **Number Bag** is filled with numbers from 1 up to a dynamic limit (about $8 \times$ Players).</li>
+            <li>The player who draws the highest number in the initial draw takes the first turn.</li>
+        </ul>
+
+        <h3>II. The Turn of Fate</h3>
+        <p>Each turn, a new **Number** is drawn from the Bag and placed in the center.</p>
+
+        <ol class="list-decimal pl-6 my-3">
+            <li><strong>Take Number:</strong> The player may choose to take the current Number and all **Coins** currently in the Central Pot. The next player then draws a new number.</li>
+            <li><strong>Leave Number:</strong> The player may choose to leave the Number, but must place **one Coin** from their personal reserve into the Central Pot. The turn passes to the next player, who must then decide whether to take or leave the current Number.</li>
+        </ol>
+
+        <h3>III. The Penalty of Penury (Zero Coins)</h3>
+        <p>If a player has **Zero Coins** and a Number is presented to them, they are **FORCED** to take the Number and any Coins in the Pot. They have no choice but to accept the fate dictated by their empty coffers. The game will pause briefly to mark this unfortunate turn of events.</p>
+
+        <h3>IV. The Scrutiny of Score</h3>
+        <p>Your score is the sum of all the Numbers you have taken, with one crucial exception:</p>
+        <ul>
+            <li>If you possess a sequence of consecutive numbers (e.g., 5, 6, 7), **only the lowest number in that sequence counts toward your final score.** (In this example, only the **5** is counted).</li>
+            <li>Non-sequential numbers (e.g., 4, 8) are always counted in full.</li>
+        </ul>
+
+        <h3>V. Conclusion of the Reckoning</h3>
+        <p>The game ends immediately when the last Number is drawn from the Bag and taken by a player.</p>
+        <p>The **Final Score** is calculated as: (Total Score from Numbers) - (Remaining Coins).</p>
+        <p>The player with the **lowest Final Score** is declared the winner.</p>
+    </div>
+</div>
+
+<div id="game-over-modal" class="modal">
+    <div class="modal-content scroll-content" style="max-height: 80vh; overflow-y: auto; color: black; font-family: 'Inter', sans-serif;">
+        <h2 class="text-3xl font-bold text-gray-800 mb-4" style="font-family: 'Inter', sans-serif; border-bottom: none;">Game Over!</h2>
+        <div id="winner-message" class="text-lg text-gray-700 mb-6"></div>
+        <button onclick="window.location.reload();" class="button bg-blue-500 hover:bg-blue-600">Play Again</button>
+    </div>
+</div>
+
+<script>
+    // Game state variables
+    let numPlayers;
+    let initialCoins;
+    let numberRange;
+
+    let players = [];
+    let numbersBag = [];
+    let potCoins = 0;
+    let currentNumber = null;
+    let currentPlayerIndex = -1;
+    let isNumberDrawn = false;
+
+    // DOM elements
+    const setupScreen = document.getElementById('setup-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const numPlayersInput = document.getElementById('num-players-input');
+    const startButton = document.getElementById('start-game-button');
+    const rulesButton = document.getElementById('rules-button'); // NEW
+    const rulesModal = document.getElementById('rules-modal');     // NEW
+    const potCoinsEl = document.getElementById('pot-coins');
+    const bagCountEl = document.getElementById('bag-count');
+    const currentNumberEl = document.getElementById('current-number');
+    const takeButton = document.getElementById('take-button');
+    const leaveButton = document.getElementById('leave-button');
+    const playerTurnInfoEl = document.getElementById('player-turn-info');
+    const gameBoardEl = document.getElementById('game-board');
+    const gameOverModal = document.getElementById('game-over-modal');
+    const winnerMessageEl = document.getElementById('winner-message');
+    const playerNamesInputArea = document.getElementById('player-names-input-area');
+
+    // Helper function to shuffle an array
+    const shuffle = (array) => {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    };
+
+    // Animate a coin from a source to a target
+    const animateCoin = (sourceEl, targetEl, numCoins = 1) => {
+        for (let i = 0; i < numCoins; i++) {
+            const coin = document.createElement('div');
+            coin.className = 'coin-animation';
+            document.body.appendChild(coin);
+
+            const sourceRect = sourceEl.getBoundingClientRect();
+            const targetRect = targetEl.getBoundingClientRect();
+            const startX = sourceRect.left + sourceRect.width / 2;
+            const startY = sourceRect.top + sourceRect.height / 2;
+            const endX = targetRect.left + targetRect.width / 2;
+            const endY = targetRect.top + targetRect.height / 2;
+
+            coin.style.left = `${startX}px`;
+            coin.style.top = `${startY}px`;
+
+            const dx = (endX - startX) + (Math.random() * 50 - 25);
+            const dy = (endY - startY) + (Math.random() * 50 - 25);
+            const dxFinal = (endX - startX);
+            const dyFinal = (endY - startY);
+
+            coin.style.setProperty('--dx', `${dx}px`);
+            coin.style.setProperty('--dy', `${dy}px`);
+            coin.style.setProperty('--dx-final', `${dxFinal}px`);
+            coin.style.setProperty('--dy-final', `${dyFinal}px`);
+
+            setTimeout(() => {
+                coin.remove();
+            }, 700);
+        }
+    };
+
+    // Function to dynamically render name inputs
+    const renderNameInputs = () => {
+        const num = parseInt(numPlayersInput.value);
+        playerNamesInputArea.innerHTML = '';
+
+        if (num >= 3 && num <= 10) {
+            for (let i = 0; i < num; i++) {
+                const container = document.createElement('div');
+                container.className = 'flex items-center gap-2 mt-2';
+
+                const label = document.createElement('label');
+                label.className = 'text-sm font-medium text-gray-700 w-24 text-right';
+                label.textContent = `Player ${i + 1}:`;
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = `player-name-${i}`;
+                input.value = `Player ${i + 1}`;
+                input.className = 'flex-grow p-2 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-blue-500';
+                input.maxLength = 12;
+
+                container.appendChild(label);
+                container.appendChild(input);
+                playerNamesInputArea.appendChild(container);
+            }
+        }
+    };
+
+    // Initialize the game
+    const initGame = (num) => {
+        // Reset game state
+        players = [];
+        potCoins = 0;
+        currentNumber = null;
+        currentPlayerIndex = -1;
+        isNumberDrawn = false;
+
+        numPlayers = num;
+        initialCoins = 11 + (numPlayers - 6) * 2;
+        numberRange = (numPlayers * 8) + 1;
+
+        numbersBag = Array.from({ length: numberRange }, (_, i) => i + 1);
+
+        for (let i = 0; i < numPlayers; i++) {
+            const nameInput = document.getElementById(`player-name-${i}`);
+            const playerName = nameInput ? nameInput.value.trim() || `Player ${i + 1}` : `Player ${i + 1}`;
+
+            players.push({
+                id: i,
+                name: playerName,
+                numbers: [],
+                coins: initialCoins,
+                score: 0
+            });
+        }
+
+        shuffle(numbersBag);
+
+        renderPlayers();
+        updatePotCoins(0);
+        updateBagCount();
+
+        takeButton.disabled = true;
+        leaveButton.disabled = true;
+    };
+
+    // Render player cards on the board
+    const renderPlayers = () => {
+        gameBoardEl.innerHTML = '';
+        players.forEach(player => {
+            const card = document.createElement('div');
+            card.id = `player-${player.id}`;
+            card.className = 'player-card transition-all duration-300 ease-in-out';
+            card.innerHTML = `
+                <h3 class="text-lg font-bold text-gray-800 mb-2 truncate" title="${player.name}">${player.name}</h3>
+                <p class="text-sm text-gray-600">Coins: <span id="coins-${player.id}" class="font-semibold text-yellow-600">${player.coins}</span></p>
+                <p class="text-sm text-gray-600">Score: <span id="score-${player.id}" class="font-semibold text-blue-600">${player.score}</span></p>
+                <div id="numbers-${player.id}" class="flex flex-wrap items-center gap-2 mt-2">
+                    </div>
+            `;
+            gameBoardEl.appendChild(card);
+            renderPlayerNumbers(player);
+        });
+    };
+
+    // Render numbers for a specific player
+    const renderPlayerNumbers = (player) => {
+        const numbersEl = document.getElementById(`numbers-${player.id}`);
+        numbersEl.innerHTML = '';
+
+        const sortedNumbers = [...player.numbers].sort((a, b) => a - b);
+
+        if (sortedNumbers.length === 0) return;
+
+        const sequences = [];
+        let currentSequence = [sortedNumbers[0]];
+
+        for (let i = 1; i < sortedNumbers.length; i++) {
+            if (sortedNumbers[i] === sortedNumbers[i - 1] + 1) {
+                currentSequence.push(sortedNumbers[i]);
+            } else {
+                sequences.push(currentSequence);
+                currentSequence = [sortedNumbers[i]];
+            }
+        }
+        sequences.push(currentSequence);
+
+        sequences.forEach(seq => {
+            if (seq.length > 1) {
+                const stackContainer = document.createElement('div');
+                stackContainer.className = 'flex flex-col items-start gap-1 p-1 bg-gray-200 rounded-lg';
+                seq.forEach(num => {
+                    const span = document.createElement('span');
+                    span.className = 'bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full';
+                    span.textContent = num;
+                    stackContainer.appendChild(span);
+                });
+                numbersEl.appendChild(stackContainer);
+            } else {
+                const span = document.createElement('span');
+                span.className = 'bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full';
+                span.textContent = seq[0];
+                numbersEl.appendChild(span);
+            }
+        });
+    };
+
+    // Update the central pot display
+    const updatePotCoins = (amount) => {
+        potCoins = amount;
+        potCoinsEl.textContent = potCoins;
+    };
+
+    // Update the numbers in the bag display
+    const updateBagCount = () => {
+        bagCountEl.textContent = numbersBag.length;
+    };
+
+    // Update the score of a single player
+    const updatePlayerScore = (player) => {
+        const sortedNumbers = [...player.numbers].sort((a, b) => a - b);
+        let score = 0;
+        let i = 0;
+        while (i < sortedNumbers.length) {
+            let start = sortedNumbers[i];
+            let count = 1;
+            let j = i + 1;
+            while (j < sortedNumbers.length && sortedNumbers[j] === start + count) {
+                count++;
+                j++;
+            }
+
+            if (count > 1) {
+                score += start;
+                i = j;
+            } else {
+                score += start;
+                i++;
+            }
+        }
+        player.score = score;
+        document.getElementById(`score-${player.id}`).textContent = player.score;
+    };
+
+    // Advance to the next player's turn
+    const advanceTurn = () => {
+        document.querySelectorAll('.player-card').forEach(card => card.classList.remove('active'));
+        document.getElementById(`player-${currentPlayerIndex}`).classList.add('active');
+
+        const currentPlayerName = players[currentPlayerIndex].name;
+        playerTurnInfoEl.textContent = `${currentPlayerName}'s Turn`;
+    };
+
+    // Start the first turn
+    const startFirstTurn = () => {
+        const initialDraws = [];
+
+        for (let i = 0; i < numPlayers; i++) {
+            if (numbersBag.length > 0) {
+                const drawnNum = numbersBag.pop();
+                initialDraws.push({ playerId: i, num: drawnNum });
+            }
+        }
+
+        initialDraws.sort((a, b) => b.num - a.num);
+        currentPlayerIndex = initialDraws[0].playerId;
+
+        initialDraws.forEach(draw => numbersBag.push(draw.num));
+        shuffle(numbersBag);
+
+        updateBagCount();
+
+        advanceTurn();
+        drawNumber();
+    };
+
+    // Handle drawing a number
+    const drawNumber = () => {
+        if (numbersBag.length === 0) {
+            endGame();
+            return;
+        }
+
+        currentNumber = numbersBag.pop();
+        currentNumberEl.textContent = currentNumber;
+        updateBagCount();
+
+        isNumberDrawn = true;
+        const player = players[currentPlayerIndex];
+
+        if (player.coins === 0) {
+            const currentPlayerName = player.name;
+            playerTurnInfoEl.textContent = `${currentPlayerName}'s Turn - FORCED TAKE! (No Coins) 🛑`;
+
+            takeButton.disabled = true;
+            leaveButton.disabled = true;
+
+            setTimeout(() => {
+                takeNumber();
+            }, 1500);
+
+        } else {
+            takeButton.disabled = false;
+            leaveButton.disabled = false;
+
+            const currentPlayerName = player.name;
+            playerTurnInfoEl.textContent = `${currentPlayerName}'s Turn`;
+        }
+    };
+
+    // Handle taking a number
+    const takeNumber = () => {
+        if (!isNumberDrawn) return;
+
+        const player = players[currentPlayerIndex];
+        const potEl = document.getElementById('pot');
+        const playerCardEl = document.getElementById(`player-${player.id}`);
+
+        if (potCoins > 0) {
+            animateCoin(potEl, playerCardEl, potCoins);
+        }
+
+        player.numbers.push(currentNumber);
+        renderPlayerNumbers(player);
+        updatePlayerScore(player);
+
+        player.coins += potCoins;
+        updatePotCoins(0);
+        document.getElementById(`coins-${player.id}`).textContent = player.coins;
+
+        currentNumber = null;
+        currentNumberEl.textContent = '-';
+
+        takeButton.disabled = true;
+        leaveButton.disabled = true;
+
+        currentPlayerIndex = (currentPlayerIndex + 1) % numPlayers;
+
+        if (numbersBag.length === 0) {
+            endGame();
+        } else {
+            advanceTurn();
+            drawNumber();
+        }
+    };
+
+    // Handle leaving a number
+    const leaveNumber = () => {
+        if (!isNumberDrawn) return;
+
+        const player = players[currentPlayerIndex];
+
+        if (player.coins > 0) {
+          const potEl = document.getElementById('pot');
+          const playerCardEl = document.getElementById(`player-${player.id}`);
+
+          animateCoin(playerCardEl, potEl);
+
+          player.coins--;
+          updatePotCoins(potCoins + 1);
+          document.getElementById(`coins-${player.id}`).textContent = player.coins;
+
+          currentPlayerIndex = (currentPlayerIndex + 1) % numPlayers;
+          advanceTurn();
+
+          const nextPlayer = players[currentPlayerIndex];
+
+          if (nextPlayer.coins === 0) {
+              const currentPlayerName = nextPlayer.name;
+              playerTurnInfoEl.textContent = `${currentPlayerName}'s Turn - FORCED TAKE! (No Coins) 🛑`;
+
+              takeButton.disabled = true;
+              leaveButton.disabled = true;
+
+              setTimeout(() => {
+                  takeNumber();
+              }, 1500);
+
+          } else {
+              takeButton.disabled = false;
+              leaveButton.disabled = false;
+          }
+        } else {
+            console.error("Attempted to leave a number with 0 coins. Action prevented.");
+        }
+    };
+
+    // End the game and determine the winner
+    const endGame = () => {
+        let winningPlayer = null;
+        let lowestScore = Infinity;
+
+        players.forEach(player => {
+            const finalScore = player.score - player.coins;
+            player.finalScore = finalScore;
+            if (finalScore < lowestScore) {
+                lowestScore = finalScore;
+                winningPlayer = player;
+            }
+        });
+
+        takeButton.disabled = true;
+        leaveButton.disabled = true;
+        playerTurnInfoEl.textContent = "Game Over!";
+
+        let message = "Final Scores (Score - Coins):<br>";
+        players.forEach(p => {
+            message += `${p.name}: ${p.finalScore} (Score: ${p.score}, Coins left: ${p.coins})<br>`;
+        });
+        message += `<br>The winner is ${winningPlayer.name} with a final score of ${lowestScore}! 🎉`;
+        winnerMessageEl.innerHTML = message;
+
+        gameOverModal.classList.add('active');
+    };
+
+    // Event listeners
+    numPlayersInput.addEventListener('change', renderNameInputs);
+    numPlayersInput.addEventListener('keyup', renderNameInputs);
+
+    startButton.addEventListener('click', () => {
+        const num = parseInt(numPlayersInput.value);
+        if (num >= 3 && num <= 10) {
+            setupScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            initGame(num);
+            startFirstTurn();
+        } else {
+            numPlayersInput.style.borderColor = 'red';
+            setTimeout(() => numPlayersInput.style.borderColor = '', 1000);
+        }
+    });
+
+    // NEW: Rules button listener
+    rulesButton.addEventListener('click', () => {
+        rulesModal.classList.add('active');
+    });
+
+    takeButton.addEventListener('click', takeNumber);
+    leaveButton.addEventListener('click', leaveNumber);
+
+    document.addEventListener('DOMContentLoaded', renderNameInputs);
+</script>
+
+</body>
+</html>
